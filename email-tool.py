@@ -1,3 +1,21 @@
+import subprocess
+import sys
+
+# Gerekli kütüphaneleri kontrol edip yükleme fonksiyonu
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Gerekli kütüphaneler listesi
+required_libraries = ['whois', 'requests', 'dns', 'colorama']
+
+# Kütüphanelerin kurulu olup olmadığını kontrol et ve gerekirse yükle
+for library in required_libraries:
+    try:
+        __import__(library)
+    except ImportError:
+        print(f"{library} kütüphanesi kurulu değil, kurulum yapılıyor...")
+        install(library)
+
 import whois
 import socket
 import ssl
@@ -45,10 +63,19 @@ def check_domain_keywords(email, domain):
             return True
     return False
 
-# Türkçe argo/küfür içerik kontrolü
-def check_turkish_slang(email, domain):
-    turkish_slangs = ['argo1', 'argo2', 'argo3']  # Küfür listesi buraya eklenecek
-    for slang in turkish_slangs:
+# Argo kelimeleri dosyadan okuma fonksiyonu
+def load_turkish_slang_words(file_path):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            slang_words = [line.strip() for line in file.readlines()]  # Her satırı al, trim et
+        return slang_words
+    except FileNotFoundError:
+        print(Fore.RED + f"Argo kelime dosyası {file_path} bulunamadı.")
+        return []
+
+# Türkçe argo/küfür içerik kontrolü (kelimeleri dosyadan okuyoruz)
+def check_turkish_slang(email, domain, slang_words):
+    for slang in slang_words:
         if slang in email or slang in domain:
             return True
     return False
@@ -175,6 +202,10 @@ def evaluate_email(email):
     domain = email.split('@')[1]
     uyarilar = []  # Uyarıları toplayacağımız liste
 
+    # Argo kelimeler dosyasının yolu
+    slang_file_path = 'turkish_slang.txt'
+    slang_words = load_turkish_slang_words(slang_file_path)
+
     # 1. Whois kontrolü
     print(Fore.BLUE + "Whois Kontrolü:")
     whois_check = check_whois(domain)
@@ -240,7 +271,7 @@ def evaluate_email(email):
 
     # 8. Türkçe Argo/Küfür Kontrolü:
     print(Fore.BLUE + "Argo/Küfür Kontrolü:")
-    slang_check = check_turkish_slang(email, domain)
+    slang_check = check_turkish_slang(email, domain, slang_words)
     if slang_check:
         print(Fore.RED + "Argo veya küfür içeriyor.")
         uyarilar.append("Argo veya küfür içeriyor.")
